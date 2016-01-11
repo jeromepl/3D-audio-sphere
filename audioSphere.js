@@ -1,6 +1,6 @@
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 30;
+camera.position.z = 200;
 
 var renderer = new THREE.WebGLRenderer({
     antialias: true
@@ -55,8 +55,9 @@ mesh.renderOrder = 0;
 scene.add(mesh);
 
 /* PARTICLE SYSTEM */
-var particleCount = 484;
-var separation = 10; //In pixels
+var radius = 100;
+var num_orbits = 40;
+var arc_separation = 1;
 var particles = new THREE.Geometry();
 var particleMaterial = new THREE.PointsMaterial({
     color: 0xFFFFFF,
@@ -67,14 +68,15 @@ var particleMaterial = new THREE.PointsMaterial({
     blendEquationAlpha: THREE.SubtractEquation
 });
 
-//particleMaterial.blendSrcAlpha = THREE.ZeroFactor;
-//particleMaterial.blendDstAlpha = THREE.ZeroFactor;
-//particleMaterial.blendEquationAlpha = THREE.SubtractEquation;
+for(var theta = -Math.PI * (1/2 - 1/num_orbits); theta < Math.PI / 2; theta += Math.PI / num_orbits) {
+    var orbitRadius = Math.cos(theta) * radius;
+    var particleCount = orbitRadius / arc_separation; //Find the number of particles to put on that orbit
+    for(var phi = 0; phi < 2 * Math.PI; phi += 2 * Math.PI / particleCount) {
+        var particle = new THREE.Vector3(0, 0, 0);
+        particle.x = particle.initX = Math.cos(theta) * Math.cos(phi) *  radius;
+        particle.y = particle.initY = Math.sin(theta) * radius;
+        particle.z = particle.initZ = Math.sin(phi) * orbitRadius;
 
-var width = Math.sqrt(particleCount);
-for (var i = -width / 2; i < width / 2; i++) {
-    for (var j = -width / 2; j < width / 2; j++) {
-        var particle = new THREE.Vector3(i * separation, 0, j * separation);
         particles.vertices.push(particle);
     }
 }
@@ -93,7 +95,7 @@ var analyser = audioCtx.createAnalyser();
 var source = audioCtx.createMediaElementSource(audio);
 source.connect(analyser);
 analyser.connect(audioCtx.destination);
-analyser.fftSize = 1024;
+analyser.fftSize = 8192;
 analyser.smoothingTimeConstant = 0.8;
 
 var frequencyData = new Uint8Array(analyser.frequencyBinCount);
@@ -106,13 +108,17 @@ function render() {
     //Update the particles
     analyser.getByteFrequencyData(frequencyData);
 
-    for (var i = 0; i < particleCount; i++) {
+    for (var i = 0; i < particles.vertices.length; i++) {
         if (i < frequencyData.length) {
-            particles.vertices[i].y = (frequencyData[i] * 100) / 256;
+            var particle = particles.vertices[i];
+            var factor = frequencyData[i] / 256 + 1; //between 1 and 2
+            particle.x = particle.initX * factor;
+            particle.y = particle.initY * factor;
+            particle.z = particle.initZ * factor;
         }
     }
 
-    particleSystem.geometry.__dirtyVertices = true;
+    particleSystem.geometry.__dirtyVertices = true; //Need to specify that the object has changed
     particleSystem.geometry.verticesNeedUpdate = true;
 
     orbit.update();

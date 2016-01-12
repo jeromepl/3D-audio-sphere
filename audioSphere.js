@@ -1,6 +1,6 @@
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 200;
+var stats = new Stats();
 
 var renderer = new THREE.WebGLRenderer({
     antialias: true
@@ -9,6 +9,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 //renderer.setClearColor(0xFF0000);
 renderer.sortObjects = true;
 document.body.appendChild(renderer.domElement);
+document.body.appendChild(stats.domElement);
+camera.position.z = 200;
 
 var orbit = new THREE.OrbitControls(camera, render.domElement);
 
@@ -64,8 +66,7 @@ var particleMaterial = new THREE.PointsMaterial({
     size: 4,
     map: new THREE.TextureLoader().load("res/particle.png"),
     blending: THREE.AdditiveBlending,
-    transparent: true,
-    blendEquationAlpha: THREE.SubtractEquation
+    transparent: true
 });
 
 for(var theta = -Math.PI * (1/2 - 1/num_orbits); theta < Math.PI / 2; theta += Math.PI / num_orbits) {
@@ -93,6 +94,7 @@ scene.add(grid);*/
 var audioCtx = new AudioContext();
 var analyser = audioCtx.createAnalyser();
 var source = audioCtx.createMediaElementSource(audio);
+var skipFrequencies = 620; //Skip the first frequencies as they have too big values and mess up the shape of the sphere
 source.connect(analyser);
 analyser.connect(audioCtx.destination);
 analyser.fftSize = 8192;
@@ -108,20 +110,25 @@ function render() {
     //Update the particles
     analyser.getByteFrequencyData(frequencyData);
 
-    for (var i = 0; i < particles.vertices.length; i++) {
-        if (i < frequencyData.length) {
-            var particle = particles.vertices[i];
-            var factor = frequencyData[i] / 256 + 1; //between 1 and 2
+    for (var i = 0; i < particles.vertices.length / 2; i++) {
+        if (i + skipFrequencies < frequencyData.length) {
+            var particle = particles.vertices[Math.floor(particles.vertices.length / 2) + i];
+            var factor = frequencyData[i + skipFrequencies] / 256 + 1; //between 1 and 2
+            particle.x = particle.initX * factor;
+            particle.y = particle.initY * factor;
+            particle.z = particle.initZ * factor;
+
+            particle = particles.vertices[Math.floor(particles.vertices.length / 2) - i];
             particle.x = particle.initX * factor;
             particle.y = particle.initY * factor;
             particle.z = particle.initZ * factor;
         }
     }
 
-    particleSystem.geometry.__dirtyVertices = true; //Need to specify that the object has changed
-    particleSystem.geometry.verticesNeedUpdate = true;
+    particleSystem.geometry.verticesNeedUpdate = true; //Need to specify that the object has changed
 
     orbit.update();
+    stats.update();
 
     renderer.render(scene, camera);
 }

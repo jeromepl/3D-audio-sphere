@@ -16,9 +16,6 @@ camera.position.y = 100;
 const orbit = new THREE.OrbitControls(camera, render.domElement);
 
 /* PARTICLE SYSTEM */
-const radius = 100;
-const num_orbits = 40;
-const arc_separation = 1;
 const particles = new THREE.Geometry();
 const particleMaterial = new THREE.PointsMaterial({
     color: 0xffffff,
@@ -29,17 +26,24 @@ const particleMaterial = new THREE.PointsMaterial({
     depthWrite: false
 });
 
-for (let theta = -Math.PI * (1 / 2 - 1 / num_orbits); theta < Math.PI / 2; theta += Math.PI / num_orbits) {
-    const orbitRadius = Math.cos(theta) * radius;
-    const particleCount = orbitRadius / arc_separation; // Find the number of particles to put on that orbit
-    for (let phi = 0; phi < 2 * Math.PI; phi += (2 * Math.PI) / particleCount) {
-        const particle = new THREE.Vector3(0, 0, 0);
-        particle.x = particle.initX = Math.cos(theta) * Math.cos(phi) * radius;
-        particle.y = particle.initY = Math.sin(theta) * radius;
-        particle.z = particle.initZ = Math.sin(phi) * orbitRadius;
+// Create a discretized 3D sphere of particles using a spiral discretization
+// See https://gist.github.com/aptxwang/628a2b038c6d01ecbc57
+// Note that this paper could also be interesting to look more into: https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/2007GC001581
+const radius = 100;
+const nbPoints = 4000;
+const step = 2 / nbPoints;
+const turns = 60; // Number of times to turn around the y-axis
+for (let i = -1; i <= 1; i += step) {
+    const phi = Math.acos(i);
+    const theta = (2 * turns * phi) % (2 * Math.PI);
 
-        particles.vertices.push(particle);
-    }
+    const particle = new THREE.Vector3(0, 0, 0);
+    // Note that y and z are flipped in the following calculations since the cartesian coordinate system is in a different rotation in Three.js than it typically is visualized in math courses
+    particle.x = particle.initX = Math.cos(theta) * Math.sin(phi) * radius;
+    particle.z = particle.initZ = Math.sin(theta) * Math.sin(phi) * radius;
+    particle.y = particle.initY = Math.cos(phi) * radius;
+
+    particles.vertices.push(particle);
 }
 
 // Create the particle system

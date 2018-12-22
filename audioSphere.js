@@ -25,7 +25,8 @@ const particleMaterial = new THREE.PointsMaterial({
     size: 4,
     map: new THREE.TextureLoader().load('res/particle.png'),
     blending: THREE.AdditiveBlending,
-    transparent: true
+    transparent: true,
+    depthWrite: false
 });
 
 for (let theta = -Math.PI * (1 / 2 - 1 / num_orbits); theta < Math.PI / 2; theta += Math.PI / num_orbits) {
@@ -78,6 +79,8 @@ function render() {
     if (frequencyData) {
         analyser.getByteFrequencyData(frequencyData);
 
+        // The frequencies are applied to the particles in a symmetric fashion, from the center row of the sphere.
+        // This means the low frequencies appear in the middle of the sphere, while the highest frequencies are located at the two poles.
         for (let i = 0; i < particles.vertices.length / 2; i++) {
             if (i + skipFrequencies < frequencyData.length) {
                 let particle = particles.vertices[Math.floor(particles.vertices.length / 2) + i];
